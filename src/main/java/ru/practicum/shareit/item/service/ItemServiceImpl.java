@@ -92,8 +92,8 @@ public class ItemServiceImpl implements ItemService {
         text = "%" + text + "%";
 
         return ItemMapper.toDto(
-                itemRepository.findByNameLikeIgnoreCaseAndAvailableTrueOrDescriptionLikeIgnoreCaseAndAvailableTrue
-                        (text, text)
+                itemRepository
+                        .findByNameLikeIgnoreCaseAndAvailableTrueOrDescriptionLikeIgnoreCaseAndAvailableTrue(text, text)
         );
     }
 

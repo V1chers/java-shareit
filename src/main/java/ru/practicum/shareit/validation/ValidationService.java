@@ -10,8 +10,8 @@ import java.util.Optional;
 
 public class ValidationService {
 
-    public static <T, ID> void isExist(JpaRepository<T, ID> repository, ID id, String message) {
-        Optional<T> object = repository.findById(id);
+    public static <t, k> void isExist(JpaRepository<t, k> repository, k id, String message) {
+        Optional<t> object = repository.findById(id);
 
         if (object.isEmpty()) {
             throw new NotFoundException(message + ": " + id);

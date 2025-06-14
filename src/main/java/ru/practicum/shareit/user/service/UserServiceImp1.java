@@ -3,13 +3,14 @@ package ru.practicum.shareit.user.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import ru.practicum.shareit.exception.exceptions.ConditionsNotMetException;
+import ru.practicum.shareit.exception.exceptions.ConflictException;
 import ru.practicum.shareit.exception.exceptions.NotFoundException;
 import ru.practicum.shareit.user.User;
 import ru.practicum.shareit.user.dal.UserRepository;
 import ru.practicum.shareit.user.dto.CreateUserDto;
 import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.dto.UserMapper;
+import ru.practicum.shareit.validation.ValidationService;
 
 import java.util.List;
 import java.util.Optional;
@@ -25,14 +26,14 @@ public class UserServiceImp1 implements UserService {
         isEmailAlreadyExists(userDto.getEmail());
 
         User user = UserMapper.fromCreateDto(userDto);
-        user = userRepository.createUser(user);
+        user = userRepository.save(user);
 
         log.info("Пользователь создан: {}", user);
         return UserMapper.toDto(user);
     }
 
     public UserDto getUser(int userId) {
-        Optional<User> user = userRepository.getUser(userId);
+        Optional<User> user = userRepository.findById(userId);
 
         if (user.isPresent()) {
             return UserMapper.toDto(user.get());
@@ -42,44 +43,45 @@ public class UserServiceImp1 implements UserService {
     }
 
     public List<UserDto> getAllUsers() {
-        List<User> users = userRepository.getAllUsers();
+        List<User> users = userRepository.findAll();
 
         return UserMapper.toDto(users);
     }
 
     public UserDto updateUser(UserDto userDto, int userId) {
         log.info("начинаем обновление данных пользователя: {}, {}", userId, userDto);
-        isUserExists(userId);
         if (userDto.getEmail() != null) {
             isEmailAlreadyExists(userDto.getEmail());
         }
 
-        userDto.setId(userId);
+        User updatingUser = UserMapper.fromDto(getUser(userId));
         User user = UserMapper.fromDto(userDto);
-        user = userRepository.updateUser(user);
+
+        if (user.getName() != null) {
+            updatingUser.setName(user.getName());
+        }
+        if (user.getEmail() != null) {
+            updatingUser.setEmail(user.getEmail());
+        }
+
+        user = userRepository.save(updatingUser);
 
         log.info("Данные пользователя обновлены: {}", user);
         return UserMapper.toDto(user);
     }
 
     public void deleteUser(int userId) {
-        isUserExists(userId);
+        ValidationService.isExist(userRepository, userId, "Данный пользователь не найден");
 
-        userRepository.deleteUser(userId);
-    }
-
-    private void isUserExists(int userId) {
-        getUser(userId);
+        userRepository.deleteById(userId);
     }
 
     private void isEmailAlreadyExists(String email) {
-        List<String> emails = userRepository.getAllUsers().stream()
-                .map(User::getEmail)
-                .toList();
+        Optional<User> userWithEmail = userRepository.findByEmail(email);
 
-        if (emails.contains(email)) {
+        if (userWithEmail.isPresent()) {
             log.warn("Выданная электронная почта занята: {}", email);
-            throw new ConditionsNotMetException("Данная электронная почта уже занята");
+            throw new ConflictException("Данная электронная почта уже занята");
         }
     }
 }

@@ -6,6 +6,7 @@ import lombok.Data;
 
 @Data
 public class CreateUserDto {
+
     @NotBlank
     @Email
     private String email;

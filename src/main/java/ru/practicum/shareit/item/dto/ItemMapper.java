@@ -1,9 +1,9 @@
 package ru.practicum.shareit.item.dto;
 
+import ru.practicum.shareit.item.model.Comment;
 import ru.practicum.shareit.item.model.Item;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class ItemMapper {
     public static ItemDto toDto(Item item) {
@@ -17,7 +17,7 @@ public class ItemMapper {
     }
 
     public static List<ItemDto> toDto(List<Item> items) {
-        return items.stream().map(ItemMapper::toDto).collect(Collectors.toList());
+        return items.stream().map(ItemMapper::toDto).toList();
     }
 
     public static Item fromDto(ItemDto itemDto, int userId) {
@@ -39,5 +39,16 @@ public class ItemMapper {
         item.setUserId(userId);
 
         return item;
+    }
+
+    public static ItemCommentsDto toItemCommentsDto(Item item, List<Comment> comments) {
+        ItemCommentsDto itemCommentsDto = new ItemCommentsDto();
+        itemCommentsDto.setId(item.getId());
+        itemCommentsDto.setName(item.getName());
+        itemCommentsDto.setDescription(item.getDescription());
+        itemCommentsDto.setAvailable(item.getAvailable());
+        itemCommentsDto.setComments(CommentMapper.toDto(comments));
+
+        return itemCommentsDto;
     }
 }

@@ -3,6 +3,7 @@ package ru.practicum.shareit.booking.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.booking.Booking;
 import ru.practicum.shareit.booking.dal.BookingRepository;
 import ru.practicum.shareit.booking.dto.BookingDto;
@@ -14,33 +15,39 @@ import ru.practicum.shareit.exception.exceptions.NotFoundException;
 import ru.practicum.shareit.item.dal.ItemRepository;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.user.dal.UserRepository;
-import ru.practicum.shareit.validation.ValidationService;
+import ru.practicum.shareit.validation.ValidationUtils;
 
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional(readOnly = true)
 public class BookingServiceImp1 implements BookingService {
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
     private final ItemRepository itemRepository;
 
-    public BookingDto createBooking(CreateBookingDto bookingDto, int userId) {
-        log.info("Начинается создание аренды на вещь: запись {}, пользователь {}", bookingDto, userId);
-        ValidationService.isExist(userRepository, userId, "Данный пользователь не найден");
-        isItemAvailable(bookingDto.getItemId());
+    @Transactional
+    public BookingDto createBooking(CreateBookingDto createBookingDto, int userId) {
+        log.info("Начинается создание аренды на вещь: запись {}, пользователь {}", createBookingDto, userId);
+        ValidationUtils.isExist(userRepository, userId, "Данный пользователь не найден");
+        isItemAvailable(createBookingDto.getItemId());
+        isEndAfterStar(createBookingDto);
 
-        Booking booking = BookingMapper.fromCreateDto(bookingDto, userId);
+        Booking booking = BookingMapper.fromCreateDto(createBookingDto, userId);
         booking = bookingRepository.save(booking);
         // Второе место, где такая же проблема возникает
         booking.setBooker(userRepository.findById(booking.getBooker().getId()).get());
         booking.setItem(itemRepository.findById(booking.getItem().getId()).get());
 
         log.info("Создание аренды прошло успешно: {},", booking);
-        return BookingMapper.toDto(booking);
+        BookingDto bookingDto = BookingMapper.toDto(booking);
+        isStatusWaiting(bookingDto);
+        return bookingDto;
     }
 
+    @Transactional
     public BookingDto approveBooking(int bookingId, Boolean approved, int userId) {
         log.info("Начинается изменение статуса записи: запись {}, {}, пользователь {}", bookingId, approved, userId);
         if (approved == null) {
@@ -49,10 +56,13 @@ public class BookingServiceImp1 implements BookingService {
         }
         isOwner(bookingId, userId);
 
-        bookingRepository.approveBooking(approved, bookingId);
-
         Booking booking = findBookingById(bookingId);
         BookingDto bookingDto = BookingMapper.toDto(booking);
+
+        isStatusWaiting(bookingDto);
+
+        bookingRepository.approveBooking(approved, bookingId);
+
         bookingDto.setStatus(approved ? State.APPROVED : State.REJECTED);
 
         log.info("Изменение статуса записи прошло успешно: {}", booking);
@@ -68,52 +78,73 @@ public class BookingServiceImp1 implements BookingService {
     }
 
     public List<BookingDto> getBookings(State state, int userId) {
-        ValidationService.isExist(userRepository, userId, "Данный пользователь не найден");
+        ValidationUtils.isExist(userRepository, userId, "Данный пользователь не найден");
 
-        List<Booking> bookings = bookingRepository.findAllByBookerId(userId);
+        List<Booking> bookings = findByState(state, userId, false);
+        System.out.println(bookings);
 
-        List<BookingDto> bookingDtoList = BookingMapper.toDto(bookings);
-        return filterByState(state, bookingDtoList);
+        return BookingMapper.toDto(bookings);
     }
 
     public List<BookingDto> getOwnBookings(State state, int userId) {
-        ValidationService.isExist(userRepository, userId, "Данный пользователь не найден");
+        ValidationUtils.isExist(userRepository, userId, "Данный пользователь не найден");
 
-        List<Booking> bookings = bookingRepository.findAllByItemOwnerId(userId);
+        List<Booking> bookings = findByState(state, userId, true);
 
-        List<BookingDto> bookingDtoList = BookingMapper.toDto(bookings);
-        return filterByState(state, bookingDtoList);
+        return BookingMapper.toDto(bookings);
     }
 
-    private List<BookingDto> filterByState(State state, List<BookingDto> bookings) {
+    private List<Booking> findByState(State state, int userId, boolean isOwner) {
         switch (state) {
             case ALL -> {
-                return bookings;
+                if (isOwner) {
+                    return bookingRepository.findAllByItemOwnerId(userId);
+                } else {
+                    return bookingRepository.findAllByBookerId(userId);
+                }
             }
             case REJECTED -> {
-                return bookings.stream()
-                        .filter(booking -> booking.getStatus() == State.REJECTED)
-                        .toList();
+                if (isOwner) {
+                    return bookingRepository.findAllRejectedByItemOwnerId(userId);
+                } else {
+                    return bookingRepository.findAllRejectedByBookerId(userId);
+                }
             }
             case WAITING -> {
-                return bookings.stream()
-                        .filter(booking -> booking.getStatus() == State.WAITING)
-                        .toList();
+                if (isOwner) {
+                    return bookingRepository.findAllByUserAndState(null, userId, false, true,
+                            true, false, false);
+                } else {
+                    return bookingRepository.findAllByUserAndState(userId, null, false, true,
+                            true, false, false);
+                }
             }
             case PAST -> {
-                return bookings.stream()
-                        .filter(booking -> booking.getStatus() == State.PAST)
-                        .toList();
+                if (isOwner) {
+                    return bookingRepository.findAllByUserAndState(null, userId, true, false,
+                            false, true, false);
+                } else {
+                    return bookingRepository.findAllByUserAndState(userId, null, true, false,
+                            false, true, false);
+                }
             }
             case CURRENT -> {
-                return bookings.stream()
-                        .filter(booking -> booking.getStatus() == State.CURRENT)
-                        .toList();
+                if (isOwner) {
+                    return bookingRepository.findAllByUserAndState(null, userId, true, false,
+                            false, false, true);
+                } else {
+                    return bookingRepository.findAllByUserAndState(userId, null, true, false,
+                            false, false, true);
+                }
             }
             case FUTURE -> {
-                return bookings.stream()
-                        .filter(booking -> booking.getStatus() == State.FUTURE)
-                        .toList();
+                if (isOwner) {
+                    return bookingRepository.findAllByUserAndState(null, userId, true, false,
+                            true, false, false);
+                } else {
+                    return bookingRepository.findAllByUserAndState(userId, null, true, false,
+                            true, false, false);
+                }
             }
             default -> throw new ConditionsNotMetException("Передан неверный параметр state");
         }
@@ -147,6 +178,21 @@ public class BookingServiceImp1 implements BookingService {
 
         if (!item.getAvailable()) {
             throw new ConditionsNotMetException("Вещь недоступна для бронирования");
+        }
+    }
+
+    private void isEndAfterStar(CreateBookingDto bookingDto) {
+        if (bookingDto.getEnd().isBefore(bookingDto.getStart())) {
+            log.warn("Конец бронирования должен быть после его начала: start {}, end {}",
+                    bookingDto.getStart(), bookingDto.getEnd());
+            throw new ConditionsNotMetException("Конец бронирования должен быть после его начала");
+        }
+    }
+
+    private void isStatusWaiting(BookingDto bookingDto) {
+        if (bookingDto.getStatus() != State.WAITING) {
+            log.warn("Бронирование должно быть в статусе ожидания: {}", bookingDto);
+            throw new ConditionsNotMetException("Бронирование должно быть в статусе ожидания");
         }
     }
 }

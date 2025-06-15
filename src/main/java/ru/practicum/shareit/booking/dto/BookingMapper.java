@@ -66,9 +66,9 @@ public class BookingMapper {
 
         if (!approved) {
             bookingDto.setStatus(State.REJECTED);
-        } else if (bookingDto.getEnd().isAfter(LocalDateTime.now())) {
+        } else if (bookingDto.getEnd().isBefore(LocalDateTime.now())) {
             bookingDto.setStatus(State.PAST);
-        } else if (bookingDto.getEnd().isBefore(LocalDateTime.now()) && bookingDto.getStart().isAfter(LocalDateTime.now())) {
+        } else if (bookingDto.getEnd().isAfter(LocalDateTime.now()) && bookingDto.getStart().isBefore(LocalDateTime.now())) {
             bookingDto.setStatus(State.CURRENT);
         } else if (bookingDto.getStart().isAfter(LocalDateTime.now())) {
             bookingDto.setStatus(State.FUTURE);

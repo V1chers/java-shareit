@@ -8,7 +8,7 @@ import ru.practicum.shareit.item.model.Item;
 
 import java.util.Optional;
 
-public class ValidationService {
+public class ValidationUtils {
 
     public static <T, K> void isExist(JpaRepository<T, K> repository, K id, String message) {
         Optional<T> object = repository.findById(id);

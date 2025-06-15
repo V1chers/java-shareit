@@ -1,9 +1,9 @@
 package ru.practicum.shareit.item.service;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.booking.Booking;
 import ru.practicum.shareit.booking.dal.BookingRepository;
 import ru.practicum.shareit.booking.dto.BookingMapper;
@@ -15,7 +15,7 @@ import ru.practicum.shareit.item.dto.*;
 import ru.practicum.shareit.item.model.Comment;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.user.dal.UserRepository;
-import ru.practicum.shareit.validation.ValidationService;
+import ru.practicum.shareit.validation.ValidationUtils;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -24,15 +24,17 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional(readOnly = true)
 public class ItemServiceImpl implements ItemService {
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
     private final CommentRepository commentRepository;
 
+    @Transactional
     public ItemDto createItem(CreateItemDto itemDto, int userId) {
         log.info("начинаем создания предмета: {}, userId = {}", itemDto, userId);
-        ValidationService.isExist(userRepository, userId, "Данный пользователь не найден");
+        ValidationUtils.isExist(userRepository, userId, "Данный пользователь не найден");
 
         Item item = ItemMapper.fromCreateDto(itemDto, userId);
         item = itemRepository.save(item);
@@ -41,8 +43,9 @@ public class ItemServiceImpl implements ItemService {
         return ItemMapper.toDto(item);
     }
 
+    @Transactional
     public ItemDto updateItem(ItemDto itemDto, int itemId, int userId) {
-        ValidationService.isExist(userRepository, userId, "Данный пользователь не найден");
+        ValidationUtils.isExist(userRepository, userId, "Данный пользователь не найден");
 
         Item updatingItem = findItemById(itemId);
 
@@ -71,7 +74,7 @@ public class ItemServiceImpl implements ItemService {
     }
 
     public List<ItemCommentsDto> getUserItems(int userId) {
-        ValidationService.isExist(userRepository, userId, "Данный пользователь не найден");
+        ValidationUtils.isExist(userRepository, userId, "Данный пользователь не найден");
 
         List<Item> items = itemRepository.findAllByUserId(userId);
 
@@ -100,8 +103,8 @@ public class ItemServiceImpl implements ItemService {
     @Transactional
     public CommentDto addComment(TextDto text, int authorId, int itemId) {
         log.info("Происходит добавление комментария: текст {}, автор {}, вещь {}", text, authorId, itemId);
-        ValidationService.isExist(itemRepository, itemId, "Данный предмет не найден");
-        ValidationService.isExist(userRepository, authorId, "Данный пользователь не найден");
+        ValidationUtils.isExist(itemRepository, itemId, "Данный предмет не найден");
+        ValidationUtils.isExist(userRepository, authorId, "Данный пользователь не найден");
         isUserBookedItem(itemId, authorId);
 
         Comment comment = new Comment(text.getText(), authorId, itemId);

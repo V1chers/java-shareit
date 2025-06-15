@@ -3,6 +3,7 @@ package ru.practicum.shareit.user.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.exception.exceptions.ConflictException;
 import ru.practicum.shareit.exception.exceptions.NotFoundException;
 import ru.practicum.shareit.user.User;
@@ -10,7 +11,7 @@ import ru.practicum.shareit.user.dal.UserRepository;
 import ru.practicum.shareit.user.dto.CreateUserDto;
 import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.dto.UserMapper;
-import ru.practicum.shareit.validation.ValidationService;
+import ru.practicum.shareit.validation.ValidationUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,9 +19,11 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional(readOnly = true)
 public class UserServiceImp1 implements UserService {
     private final UserRepository userRepository;
 
+    @Transactional
     public UserDto createUser(CreateUserDto userDto) {
         log.info("начинаем создания пользователя: {}", userDto);
         isEmailAlreadyExists(userDto.getEmail());
@@ -48,6 +51,7 @@ public class UserServiceImp1 implements UserService {
         return UserMapper.toDto(users);
     }
 
+    @Transactional
     public UserDto updateUser(UserDto userDto, int userId) {
         log.info("начинаем обновление данных пользователя: {}, {}", userId, userDto);
         if (userDto.getEmail() != null) {
@@ -70,8 +74,9 @@ public class UserServiceImp1 implements UserService {
         return UserMapper.toDto(user);
     }
 
+    @Transactional
     public void deleteUser(int userId) {
-        ValidationService.isExist(userRepository, userId, "Данный пользователь не найден");
+        ValidationUtils.isExist(userRepository, userId, "Данный пользователь не найден");
 
         userRepository.deleteById(userId);
     }

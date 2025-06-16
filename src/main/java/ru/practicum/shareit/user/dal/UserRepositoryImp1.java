@@ -11,7 +11,7 @@ import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
-public class UserRepositoryImp1 implements UserRepository {
+public class UserRepositoryImp1 {
     private final HashMap<Integer, User> users;
 
     public User createUser(User user) {

@@ -10,7 +10,7 @@ import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
-public class ItemRepositoryImp1 implements ItemRepository {
+public class ItemRepositoryImp1 {
     private final HashMap<Integer, Item> items;
 
     public Item createItem(Item item) {

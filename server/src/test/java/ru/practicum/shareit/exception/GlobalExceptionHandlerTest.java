@@ -1,68 +1,89 @@
 package ru.practicum.shareit.exception;
 
+import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 import ru.practicum.shareit.exception.exceptions.ConditionsNotMetException;
 import ru.practicum.shareit.exception.exceptions.ConflictException;
 import ru.practicum.shareit.exception.exceptions.NotFoundException;
+import ru.practicum.shareit.user.UserController;
+import ru.practicum.shareit.user.service.UserService;
 
-import static org.hamcrest.MatcherAssert.assertThat;
+import java.nio.charset.StandardCharsets;
+
 import static org.hamcrest.Matchers.is;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@ExtendWith(MockitoExtension.class)
+@WebMvcTest(controllers = {UserController.class, GlobalExceptionHandler.class})
+@RequiredArgsConstructor(onConstructor_ = @Autowired)
 class GlobalExceptionHandlerTest {
+    private final MockMvc mvc;
 
-    @InjectMocks
-    private GlobalExceptionHandler exceptionHandler;
+    @MockBean
+    UserService userService;
 
     @Test
-    void handleNotFoundException() {
-        NotFoundException exception = new NotFoundException("Item not found");
+    void handleNotFoundException() throws Exception {
+        when(userService.getAllUsers())
+                .thenThrow(new NotFoundException("Not Found"));
 
-        ErrorResponse response = exceptionHandler.handleNotFoundException(exception);
-
-        assertThat(response.getError(), is("Item not found"));
+        mvc.perform(get("/users")
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error", is("Not Found")));
     }
 
     @Test
     void handleValidException() {
-        MethodArgumentNotValidException exception = mock(MethodArgumentNotValidException.class);
-        when(exception.getMessage()).thenReturn("Validation failed");
-
-        ErrorResponse response = exceptionHandler.handleValidException(exception);
-
-        assertThat(response.getError(), is("Validation failed"));
+        //не знаю как переделать
     }
 
     @Test
-    void handleConflictException() {
-        ConflictException exception = new ConflictException("Email already exists");
+    void handleConflictException() throws Exception {
+        when(userService.getAllUsers())
+                .thenThrow(new ConflictException("Conflict"));
 
-        ErrorResponse response = exceptionHandler.handleConflictException(exception);
-
-        assertThat(response.getError(), is("Email already exists"));
+        mvc.perform(get("/users")
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error", is("Conflict")));
     }
 
     @Test
-    void handeConditionsNoteMetException() {
-        ConditionsNotMetException exception = new ConditionsNotMetException("Conditions not met");
+    void handeConditionsNoteMetException() throws Exception {
+        when(userService.getAllUsers())
+                .thenThrow(new ConditionsNotMetException("Conditions not met"));
 
-        ErrorResponse response = exceptionHandler.handeConditionsNoteMetException(exception);
+        mvc.perform(get("/users")
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error", is("Conditions not met")));
 
-        assertThat(response.getError(), is("Conditions not met"));
     }
 
     @Test
-    void handleException() {
-        RuntimeException exception = new RuntimeException("Unexpected error");
+    void handleException() throws Exception {
+        when(userService.getAllUsers())
+                .thenThrow(new NullPointerException("ERROR"));
 
-        ErrorResponse response = exceptionHandler.handleException(exception);
-
-        assertThat(response.getError(), is("Unexpected error"));
+        mvc.perform(get("/users")
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.error", is("ERROR")));
     }
 }

@@ -24,9 +24,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleValidException(final MethodArgumentNotValidException e) {
-        log.warn("Ошибка валидации, ошибка 400: {}", e.getMessage());
-        return new ErrorResponse(e.getMessage());
+    public ValidationErrorResponse handleValidException(final MethodArgumentNotValidException e) {
+        ValidationErrorResponse validationErrorResponse = new ValidationErrorResponse(e.getMessage(), e.getFieldErrors());
+        log.warn("Ошибка валидации, ошибка 400: {}", validationErrorResponse);
+
+        return validationErrorResponse;
     }
 
     @ExceptionHandler

@@ -1,13 +1,19 @@
 package ru.practicum.shareit.client;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.lang.Nullable;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
+import ru.practicum.shareit.exception.exceptions.InternalServerError;
 
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 public class BaseClient {
     protected final RestTemplate rest;
 
@@ -100,7 +106,14 @@ public class BaseClient {
                 shareitServerResponse = rest.exchange(path, method, requestEntity, Object.class);
             }
         } catch (HttpStatusCodeException e) {
-            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsByteArray());
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode responseBody = mapper.readTree(e.getResponseBodyAsString());
+                return ResponseEntity.status(e.getStatusCode()).body(responseBody);
+            } catch (JsonProcessingException jme) {
+                log.error("Произошла ошибка при создании json объекта");
+                throw new InternalServerError("Произошла ошибка при создании json объекта");
+            }
         }
         return prepareGatewayResponse(shareitServerResponse);
     }

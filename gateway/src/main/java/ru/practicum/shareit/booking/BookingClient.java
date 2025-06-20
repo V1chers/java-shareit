@@ -6,10 +6,6 @@ import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.util.DefaultUriBuilderFactory;
 import ru.practicum.shareit.booking.dto.BookItemRequestDto;
 import ru.practicum.shareit.booking.dto.BookingState;
@@ -42,10 +38,9 @@ public class BookingClient extends BaseClient {
         return get("?state={state}", userId, parameters);
     }
 
-    @PatchMapping("/{bookingId}")
-    public ResponseEntity<Object> approveBooking(@PathVariable int bookingId,
-                                                 @RequestParam Boolean approved,
-                                                 @RequestHeader("X-Sharer-User-Id") long userId) {
+    public ResponseEntity<Object> approveBooking(int bookingId,
+                                                 Boolean approved,
+                                                 long userId) {
         Map<String, Object> parameters = Map.of(
                 "bookingId", bookingId,
                 "approved", approved
